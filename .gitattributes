@@ -1,0 +1,5 @@
+# Keep document and image bytes unchanged; do not treat them as text diffs.
+*.pdf binary
+*.pptx binary
+*.jpg binary
+*.png binary
