@@ -145,3 +145,34 @@
 - [ ] 10/15 現場三分鐘報告與檢核。
 
 前面的製作待辦是選擇前紀錄，以本版驗收為最新狀態。上傳狀態以 GitHub 實際檔案及最終回報為準。
+
+
+## 2026-10-08：改成 3D 生物
+
+本人要求：「雛形要是 3D 的，給我能互動的生物，可以用 p5.js 做，再更新上 GitHub 並確認能順利打開。」
+
+保留既有變數與生命規則，增加 z／vz；改變繪圖、滑鼠對位與觀看方式。2D 原型完整另存 versions/2d，不刪除 10/2 截圖與簡報。
+
+### 做法與取捨
+
+- 沿用現有 p5.js 2.0.5 的 WebGL，不增加 3D 引擎或大型安裝；易於接續課程。3D 形體採 ellipsoid／sphere 與三角面，不使用外部模型或生成圖。
+- 官方 orbitControl 可旋轉、平移、縮放，但左鍵拖曳會與原水霧操作重疊。本版採「轉動視角／水霧」切換，使用兩個角度控制場景，讓座標對齊計算保持可讀。
+- 採正交投影：前後遠近不改變大小，仍有真實三維形體、遮擋、光影與旋轉。這是展示選擇，不宣稱是透視相機。
+- 半透明畫面依視圖深度由遠到近畫，降低遮擋違和；不是完整折射渲染。
+
+### 已讀官方技術來源
+
+- [createCanvas](https://p5js.org/reference/p5/createCanvas/)：WEBGL 及 WebGL2／WebGL1 支援。
+- [ellipsoid](https://p5js.org/reference/p5/ellipsoid/)：三維橢球與面數。
+- [ortho](https://p5js.org/reference/p5/ortho/)：正交投影的觀看方式。
+- [orbitControl](https://p5js.org/reference/p5/orbitControl/)：比較滑鼠操作與原互動的衝突。
+- [材質](https://p5js.org/reference/p5/ambientMaterial/)：燈光與材質方向，實際色彩設定並核對現有套件行為。
+- [GitHub Pages 官方說明](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site)：在原 repository 提供能執行的靜態作品網頁。
+
+讀取限制：嘗試 p5.js 舊 WebGL 入門網址，查詢工具無法開啟、直接取得回傳 404；沒有採用該頁內容。以上列出的官方 API 均已開啟。
+
+### 操作檢查
+
+本機實際測試：WebGL 正常載入，沒有 error／warn；轉動視角能看到側背面，滑桿縮放、暫停觀察及重置有效；水霧會讓附近晶瓣展開；旋風與降雨按鈕切換正常。最終遠端驗證結果另見交付回報。新版實際截圖在 screenshots，沒有使用生成圖。
+
+10/2 簡報記錄 2D 階段，本次保留；正式報告可另以新版 3D 實機展示補充。反思及老師回饋仍須本人完成。

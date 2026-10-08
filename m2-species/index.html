@@ -7,14 +7,16 @@
   <script src="lib/p5.min.js"></script>
   <style>
     *{box-sizing:border-box}body{margin:0;background:#090f20;color:#e6e7f5;font-family:system-ui,'PingFang TC',sans-serif}header{position:absolute;left:5vw;top:4vh;pointer-events:none;z-index:1}small{letter-spacing:.24em;color:#a6bbc9;font-size:11px}h1{font-size:clamp(28px,4vw,50px);font-weight:300;letter-spacing:.14em;margin:14px 0 8px}header p{color:#aeb9ce;font-size:13px;letter-spacing:.08em}main{height:100svh;min-height:540px}canvas{display:block;touch-action:none}footer{position:absolute;bottom:24px;left:5vw;right:5vw;display:flex;align-items:center;gap:14px;flex-wrap:wrap;z-index:2;font-size:12px;color:#aeb9ce}button{border:1px solid #576478;background:#111d31cc;color:#e6e7f5;border-radius:24px;padding:10px 20px;cursor:pointer}button:hover,button:focus-visible{background:#30435b}#status{margin-left:auto;color:#bce5e1}.hint{max-width:520px;line-height:1.8}@media(max-width:650px){header{top:20px}footer{bottom:16px;gap:8px}.hint{font-size:11px}#status{margin-left:0;width:100%}}
+      .view-tools{position:absolute;right:5vw;top:4vh;z-index:3;display:flex;align-items:center;gap:8px;flex-wrap:wrap;max-width:440px;font-size:12px;color:#bce5e1}.view-tools button{padding:9px 14px}.view-tools label{display:flex;align-items:center;gap:8px}.view-tools input{width:90px;accent-color:#bce5e1}button[aria-pressed="true"]{background:#3c5068;border-color:#bce5e1}#garden{background:radial-gradient(ellipse at 50% 65%,#1d3248,#090f20)}@media(max-width:800px){.view-tools{top:125px;left:5vw;right:auto;max-width:90vw}header p{max-width:85vw}.view-tools span{display:none}}
   </style>
 </head>
 <body>
   <header><small>POST-FUTURE ZOO / M2</small><h1>霧晶囊</h1><p>花園不在某個地方。牠們一起成為花園。</p></header>
-  <main id="garden" aria-label="透明膜囊與結晶花瓣形成的漂浮生命"></main>
+  <aside class="view-tools" aria-label="3D 視角控制"><span>3D 觀察</span><button id="view" type="button" aria-pressed="false">轉動視角</button><button id="front" type="button">回到正面</button><label>遠近<input id="zoom" aria-label="觀察遠近" type="range" min="65" max="180" value="100"></label></aside>
+  <main id="garden" aria-label="可旋轉觀察的 3D 透明膜囊與立體晶瓣"></main>
   <footer>
     <button id="rain" type="button">降一場雨</button><button id="vortex" type="button" aria-pressed="false">喚起旋風</button><button id="pause" type="button">暫停觀察</button><button id="reset" type="button">重新萌生</button>
-    <span class="hint">移動游標帶來水霧 · 點擊釋放波紋<br>Shift ＋移動帶起旋風 · 空白鍵暫停 · R 重置</span><span id="status" aria-live="polite">花園正在甦醒</span>
+    <span class="hint">水霧模式：移動補水 · 點擊波紋 · Shift 旋風<br>轉動視角：拖曳旋轉 · 滾輪縮放 · 空白鍵暫停</span><span id="status" aria-live="polite">花園正在甦醒</span>
   </footer>
   <script src="sketch.js"></script>
 </body>
