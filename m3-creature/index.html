@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="會下雨的漂浮花園。觀察霧晶囊如何靠近水霧、展開晶瓣，又隨風雨聚散。">
+  <title>漂浮花園 — ys</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2710%27 fill=%27none%27 stroke=%27%2352797b%27 stroke-width=%272%27/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="vendor/codrops/base.css"><link rel="stylesheet" href="exhibition.css">
+</head>
+<body>
+  <header class="frame exhibition-frame">
+    <a class="wordmark" href="#exhibit">ys / 後未來動物園</a>
+    <nav aria-label="展場導覽"><a href="#world">世界</a><a href="#life">生命</a><button id="help" class="unbutton" aria-controls="guide" aria-expanded="false">怎麼互動 ↗</button></nav>
+  </header>
+  <main>
+    <section id="exhibit" class="exhibit" aria-label="漂浮花園互動展場">
+      <canvas id="canvas" aria-label="可補水、旋轉及觀察的 3D 霧晶囊" tabindex="0"></canvas>
+      <div class="hero-copy"><p class="eyebrow">人類消失後 500 年 · 多姆山雲霧帶</p><h1>會下雨的<br><span>漂浮花園</span></h1><p class="hero-note">花園不在某個地方。<br>牠們一起成為花園。</p></div>
+      <div class="specimen-caption"><span>SPECIMEN 01</span><span>霧晶囊</span><span id="status" role="status">花園正在甦醒</span></div>
+      <div id="loading" class="loading-state"><p id="load-state">正在進入花園…</p><a href="../m2-species/">開啟上一版</a></div>
+      <aside id="guide" class="guide" hidden><p>留一點水霧，看看牠的反應。</p><ol><li>水霧：把游標停在生物旁；點一下放出波紋。</li><li>轉動：拖曳看側面與背面，滾輪調整遠近。</li><li>降雨與旋風會改變花園的重量和流向。</li><li>空白鍵暫停，R 重新萌生，Esc 收起說明。</li></ol><a href="https://github.com/ys3213/ys-m0-outfit/blob/main/m3-creature/RUN.md">完整操作說明</a></aside>
+      <div class="bottom-bar">
+        <div class="mode-switch" aria-label="觀察範圍"><button id="single" class="unbutton" aria-pressed="true">個體</button><span>/</span><button id="colony" class="unbutton" aria-pressed="false">花園</button></div>
+        <div class="interaction-switch" aria-label="互動方式"><button id="water-mode" class="unbutton" aria-pressed="true">水霧</button><button id="orbit-mode" class="unbutton" aria-pressed="false">轉動</button></div>
+        <div class="weather-controls"><button id="rain" class="unbutton">降雨</button><button id="wind" class="unbutton" aria-pressed="false">旋風</button><button id="pause" class="unbutton" aria-pressed="false">暫停</button><button id="reset" class="unbutton">重新萌生</button></div>
+        <label class="zoom-label">遠近<input id="zoom" aria-label="觀察遠近" type="range" min="65" max="180" value="100"></label><button id="front" class="unbutton front-button">正面</button>
+        <div class="readings"><span>含水 <b id="water">45</b><small>%</small></span><span>個體 <b id="count">01</b></span></div>
+      </div>
+      <a class="scroll-note" href="#world">往下，走進牠的世界 ↓</a>
+    </section>
+    <section id="world" class="content world-section" aria-labelledby="world-title">
+      <p class="section-index">01 / 世界</p><h2 id="world-title" class="content__title">棲地會<br><em>消失。</em></h2>
+      <div class="world-description"><p>人類離開後五百年，<br>雲霧成了短暫的棲地。</p><p>在法國多姆山的低層雲帶，水滴聚起，又蒸發或落下。這座花園跟著移動，沒有一塊永遠安全的土地。</p><a href="https://github.com/ys3213/ys-m0-outfit/blob/main/m1-world/world-research.md">世界研究 ↗</a></div>
+    </section>
+    <section id="life" class="life-section" aria-labelledby="life-title"><p class="section-index">02 / 生命</p><h2 id="life-title">牠用開合，<br>回應這個世界。</h2><div class="life-notes">
+      <article><span>Ⅰ</span><h3>靠近水霧</h3><p>還沒吸足水時，牠會緩緩靠近。靠近水霧中心，牠也慢下來。</p></article>
+      <article><span>Ⅱ</span><h3>乾燥收攏</h3><p>水分慢慢散失，晶瓣收起，感絲的擺動和移動都變輕。</p></article>
+      <article><span>Ⅲ</span><h3>飽水下沉</h3><p>一場雨會讓身體變重。花園沉向雲帶下緣，再被氣流托住。</p></article>
+    </div><p class="life-footnote">霧晶囊是以雲水微生物研究展開的想像生命。<a href="https://github.com/ys3213/ys-m0-outfit/blob/main/m2-species/species-profile.md">物種設定與參照 ↗</a></p></section>
+  </main>
+  <footer class="exhibition-footer"><p>會下雨的漂浮花園 / ys</p><div><a href="../m2-species/">10/8 雛形</a><a href="../m1-world/m1-簡報.pdf">世界簡報</a><a href="https://github.com/ys3213/ys-m0-outfit">作品紀錄 ↗</a></div></footer>
+  <noscript><p>請允許 JavaScript 載入瀏覽器版作品。<a href="../m2-species/">上一版雛形</a></p></noscript>
+  <script type="module">
+    // 僅載入編譯後的 Rust；生命規則、繪圖、事件與動畫迴圈均在 Rust。
+    try { const { default: init } = await import('./pkg/mist_garden.js'); await init(); }
+    catch (error) { document.getElementById('load-state').textContent='花園暫時無法啟動。請確認瀏覽器支援 WebGL2，或開啟上一版。'; console.error(error); }
+  </script>
+</body>
+</html>
