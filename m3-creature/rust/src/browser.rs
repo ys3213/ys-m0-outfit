@@ -29,6 +29,7 @@ fn pressed(id: &str, value: bool) {
 struct Mesh {
     triangles: Vec<f32>,
     lines: Vec<f32>,
+    detailed: bool,
 }
 fn vertex(out: &mut Vec<f32>, p: Vec3, n: Vec3, color: [f32; 4], glow: f32) {
     out.extend_from_slice(&[
@@ -40,12 +41,7 @@ impl Mesh {
         Self {
             triangles: vec![],
             lines: vec![],
-        }
-    }
-    fn tri(&mut self, a: Vec3, b: Vec3, c: Vec3, color: [f32; 4]) {
-        let n = (b - a).cross(c - a).normalize_or_zero();
-        for p in [a, b, c] {
-            vertex(&mut self.triangles, p, n, color, 0.);
+            detailed: true,
         }
     }
     fn line(&mut self, a: Vec3, b: Vec3, color: [f32; 4]) {
@@ -54,8 +50,8 @@ impl Mesh {
         }
     }
     fn ellipsoid(&mut self, model: Mat4, radius: Vec3, color: [f32; 4], glow: f32) {
-        let nx = 16;
-        let ny = 10;
+        let nx = if self.detailed { 16 } else { 8 };
+        let ny = if self.detailed { 10 } else { 5 };
         for y in 0..ny {
             for x in 0..nx {
                 let unit = |xx: usize, yy: usize| {
@@ -81,116 +77,223 @@ impl Mesh {
             }
         }
     }
-    fn crystal(&mut self, model: Mat4, length: f32, wide: f32, thick: f32) {
-        let v = [
-            Vec3::ZERO,
-            Vec3::new(length * 0.57, -wide, 0.),
-            Vec3::new(length, 0., 0.),
-            Vec3::new(length * 0.57, wide, 0.),
-            Vec3::new(length * 0.5, 0., thick),
-            Vec3::new(length * 0.5, 0., -thick),
-        ]
-        .map(|p| model.transform_point3(p));
-        for (i, [a, b, c]) in [
-            [0, 1, 4],
-            [1, 2, 4],
-            [2, 3, 4],
-            [3, 0, 4],
-            [1, 0, 5],
-            [2, 1, 5],
-            [3, 2, 5],
-            [0, 3, 5],
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            self.tri(
-                v[a],
-                v[b],
-                v[c],
-                if i % 2 == 0 {
-                    [0.27, 0.49, 0.58, 0.57]
-                } else {
-                    [0.43, 0.62, 0.67, 0.4]
+    // 平滑參數曲面：有限差分求法線，轉動後仍能看到膜的弧度。
+    fn surface(
+        &mut self,
+        model: Mat4,
+        nu: usize,
+        nv: usize,
+        color: [f32; 4],
+        point: impl Fn(f32, f32) -> Vec3,
+    ) {
+        let mut grid = Vec::with_capacity((nu + 1) * (nv + 1));
+        for y in 0..=nv {
+            for x in 0..=nu {
+                let u = x as f32 / nu as f32;
+                let v = y as f32 / nv as f32;
+                let p = point(u, v);
+                let du = point(u + 0.0005, v) - point(u - 0.0005, v);
+                let dv = point(u, (v + 0.0005).min(1.)) - point(u, (v - 0.0005).max(0.));
+                grid.push((
+                    model.transform_point3(p),
+                    model.transform_vector3(du.cross(dv)).normalize_or_zero(),
+                ));
+            }
+        }
+        for y in 0..nv {
+            for x in 0..nu {
+                for (xx, yy) in [
+                    (x, y),
+                    (x + 1, y),
+                    (x + 1, y + 1),
+                    (x, y),
+                    (x + 1, y + 1),
+                    (x, y + 1),
+                ] {
+                    let (p, n) = grid[yy * (nu + 1) + xx];
+                    vertex(&mut self.triangles, p, n, color, 0.);
+                }
+            }
+        }
+    }
+
+    fn tube(&mut self, points: &[Vec3], radius: f32, color: [f32; 4]) {
+        for i in 1..points.len() {
+            let direction = (points[i] - points[i - 1]).normalize_or_zero();
+            let axis = if direction.x.abs() < 0.9 {
+                Vec3::X
+            } else {
+                Vec3::Z
+            };
+            let right = direction.cross(axis).normalize_or_zero();
+            let up = direction.cross(right).normalize_or_zero();
+            for side in 0..5 {
+                for (end, s) in [
+                    (0, side),
+                    (1, side),
+                    (1, side + 1),
+                    (0, side),
+                    (1, side + 1),
+                    (0, side + 1),
+                ] {
+                    let a = s as f32 / 5. * TAU;
+                    let n = right * a.cos() + up * a.sin();
+                    let taper = (1. - (i - 1 + end) as f32 / points.len() as f32)
+                        .sqrt()
+                        .max(0.15);
+                    vertex(
+                        &mut self.triangles,
+                        points[i - 1 + end] + n * radius * taper,
+                        n,
+                        color,
+                        0.,
+                    );
+                }
+            }
+        }
+    }
+    fn specimen(&mut self, g: &Garden, c: &crate::life::Creature) {
+        use crate::soft_body::{bell, pose, strand_angle};
+        let r = c.size * c.young;
+        let model = pose(c.position, g.time, c.phase);
+        let detailed = g.single;
+        let fade = |part: u8| {
+            if g.focus == 0 || g.focus == part {
+                1.
+            } else {
+                0.13
+            }
+        };
+        // 雙層膠膜與五道向內捲曲的褶瓣；不是硬玻璃外殼。
+        for layer in 0..2 {
+            let scale = if layer == 0 { 1. } else { 0.91 };
+            self.surface(
+                model,
+                if detailed { 64 } else { 20 },
+                if detailed { 24 } else { 10 },
+                [
+                    0.60,
+                    0.72,
+                    0.76,
+                    (if layer == 0 { 0.25 } else { 0.13 }) * fade(1),
+                ],
+                |u, v| {
+                    bell(v, u * TAU, g.time, c.bloom, c.phase) * r * scale
+                        + Vec3::Y * r * layer as f32 * 0.035
                 },
             );
         }
-        self.line(v[0], v[4], [0.18, 0.34, 0.39, 0.5]);
-        self.line(v[4], v[2], [0.18, 0.34, 0.39, 0.5]);
-        for [a, b] in [[0, 1], [1, 2], [2, 3], [3, 0]] {
-            self.line(v[a], v[b], [0.27, 0.43, 0.46, 0.35]);
+        for petal in 0..5 {
+            let a = petal as f32 / 5. * TAU;
+            self.surface(
+                model,
+                if detailed { 12 } else { 4 },
+                if detailed { 20 } else { 8 },
+                [0.70, 0.53, 0.67, 0.30 * fade(1)],
+                |u, v| {
+                    let angle = a + (u - 0.5) * (0.18 + v * 0.60);
+                    let mut p = bell(0.35 + v * 0.64, angle, g.time, c.bloom, c.phase) * r * 0.9;
+                    p.y += ((u - 0.5) * PI * 2.).cos() * r * 0.12 * v + r * 0.06;
+                    p
+                },
+            );
+            // 細溝延續到褶邊；微小液珠沿著它滑向囊體。
+            let path: Vec<_> = (0..=28)
+                .map(|i| {
+                    model.transform_point3(
+                        bell(i as f32 / 28., a, g.time, c.bloom, c.phase) * r * 1.005,
+                    )
+                })
+                .collect();
+            if detailed {
+                self.tube(&path, r * 0.005, [0.32, 0.48, 0.55, 0.62 * fade(1)]);
+            }
+            if detailed && c.water > 0.2 {
+                let u = 1. - (g.time * 0.07 + petal as f32 * 0.19).fract();
+                let p = model.transform_point3(bell(u, a, g.time, c.bloom, c.phase) * r * 1.02);
+                self.ellipsoid(
+                    Mat4::from_translation(p),
+                    Vec3::splat(r * 0.023),
+                    [0.76, 0.89, 0.90, 0.75 * fade(1)],
+                    0.1,
+                );
+            }
+        }
+        // 三個囊室內各有一簇顆粒；水量變化能從囊室大小讀到。
+        for j in 0..3 {
+            let angle = j as f32 / 3. * TAU + 0.4;
+            let center = Vec3::new(angle.sin() * r * 0.32, -r * 0.30, angle.cos() * r * 0.26);
+            let inner = model * Mat4::from_translation(center) * Mat4::from_rotation_z(angle * 0.3);
+            self.ellipsoid(
+                inner,
+                Vec3::new(0.24, 0.30, 0.22) * r * (0.75 + c.water * 0.3),
+                [0.58, 0.51, 0.66, 0.40 * fade(2)],
+                0.,
+            );
+            for k in 0..if detailed { 5 } else { 2 } {
+                let a = k as f32 * 2.4 + j as f32;
+                let p = center
+                    + Vec3::new(
+                        a.cos() * 0.09,
+                        (a + g.time * 0.4).sin() * 0.1,
+                        a.sin() * 0.09,
+                    ) * r;
+                self.ellipsoid(
+                    model * Mat4::from_translation(p),
+                    Vec3::splat(r * (0.033 + c.energy * 0.018)),
+                    [0.36, 0.29, 0.43, 0.82 * fade(2)],
+                    0.15,
+                );
+            }
+        }
+        for (j, strand) in c.filaments.iter().enumerate() {
+            if !detailed {
+                if j % 3 == 0 {
+                    for pair in strand.points.windows(2) {
+                        self.line(pair[0], pair[1], [0.4, 0.4, 0.5, 0.5 * fade(3)]);
+                    }
+                }
+                continue;
+            }
+            self.tube(
+                &strand.points,
+                r * 0.008,
+                [0.36, 0.49, 0.55, 0.70 * fade(3)],
+            );
+            if detailed || j % 3 == 0 {
+                for node in [8, 12, 16] {
+                    let p = strand.points[node];
+                    let a = strand_angle(j) + node as f32;
+                    let branch: Vec<_> = (0..7)
+                        .map(|k| {
+                            let s = k as f32 / 6.;
+                            p + Vec3::new(
+                                a.sin() * s * 0.20,
+                                s * 0.15 + (s * PI).sin() * 0.05,
+                                a.cos() * s * 0.2,
+                            ) * r
+                        })
+                        .collect();
+                    self.tube(&branch, r * 0.0045, [0.50, 0.40, 0.56, 0.55 * fade(3)]);
+                }
+            }
+            if detailed && c.water > 0.30 && j % 3 == 0 {
+                let p = strand.points[12];
+                self.ellipsoid(
+                    Mat4::from_translation(p),
+                    Vec3::new(0.021, 0.033, 0.021) * r,
+                    [0.70, 0.83, 0.85, 0.65 * fade(3)],
+                    0.,
+                );
+            }
         }
     }
     fn garden(&mut self, g: &Garden) {
+        self.detailed = g.single;
         let mut order: Vec<_> = g.creatures.iter().collect();
         order.sort_by(|a, b| g.project(a.position).1.total_cmp(&g.project(b.position).1));
         for c in order {
-            let t = g.time;
-            let r =
-                c.size * (0.7 + c.bloom * 0.6) * (1. + (t * 1.6 + c.phase).sin() * 0.065) * c.young;
-            let model = Mat4::from_translation(c.position)
-                * Mat4::from_rotation_x(0.35 + (t * 0.35 + c.phase).sin() * 0.25)
-                * Mat4::from_rotation_y(c.phase + (t * 0.22 + c.phase).sin() * 0.5)
-                * Mat4::from_rotation_z((t * 0.3 + c.phase).sin() * 0.24);
-            for i in 0..5 {
-                let petal = model
-                    * Mat4::from_rotation_z(i as f32 * TAU / 5.)
-                    * Mat4::from_rotation_y(
-                        0.45 - c.bloom * 0.7 + (t + c.phase + i as f32).sin() * 0.06,
-                    );
-                self.crystal(
-                    petal,
-                    r * (1.43 + c.bloom * 0.8),
-                    r * 0.44 * (0.38 + c.bloom * 0.8),
-                    r * 0.22,
-                );
-            }
-            let core = (r * 0.15).max(4.) * (0.7 + c.energy * 0.5);
-            self.ellipsoid(
-                model,
-                Vec3::splat(core),
-                [0.18, 0.43, 0.48, 0.96],
-                0.35 + c.energy * 0.5,
-            );
-            self.ellipsoid(
-                model,
-                Vec3::new(r * 0.84, r, r * 0.72),
-                [0.40, 0.63, 0.65, 0.30],
-                0.08,
-            );
-            // 五條膜脈與兩條感絲。水分低時，感絲也會降低擺幅。
-            for j in 0..5 {
-                let mut prev = None;
-                for k in 0..=16 {
-                    let a = k as f32 / 16. * PI;
-                    let b = j as f32 / 5. * TAU;
-                    let p = model.transform_point3(Vec3::new(
-                        r * 0.845 * a.sin() * b.cos(),
-                        r * a.cos(),
-                        r * 0.725 * a.sin() * b.sin(),
-                    ));
-                    if let Some(old) = prev {
-                        self.line(old, p, [0.25, 0.44, 0.47, 0.32]);
-                    }
-                    prev = Some(p);
-                }
-            }
-            for j in 0..2 {
-                let mut prev = None;
-                for k in 0..=18 {
-                    let a = k as f32 / 18.;
-                    let p = model.transform_point3(Vec3::new(
-                        (j as f32 - 0.5) * r * 0.45
-                            + (a * 4. + t + c.phase).sin() * r * 0.15 * a * (0.3 + c.bloom),
-                        r * (0.6 + a * 1.2),
-                        (a * 3. + t + c.phase).cos() * r * 0.35 * a,
-                    ));
-                    if let Some(old) = prev {
-                        self.line(old, p, [0.22, 0.40, 0.45, 0.55]);
-                    }
-                    prev = Some(p);
-                }
-            }
+            self.specimen(g, c);
         }
         for (i, a) in g.creatures.iter().enumerate() {
             for b in g.creatures.iter().skip(i + 1) {
@@ -250,6 +353,7 @@ struct Renderer {
     program: WebGlProgram,
     buffer: WebGlBuffer,
     mvp: WebGlUniformLocation,
+    view: WebGlUniformLocation,
     canvas: HtmlCanvasElement,
 }
 impl Renderer {
@@ -266,9 +370,9 @@ impl Renderer {
             r#"#version 300 es
 precision highp float;
 in vec3 a_position; in vec3 a_normal; in vec4 a_color; in float a_glow;
-uniform mat4 u_mvp;
+uniform mat4 u_mvp; uniform mat4 u_view;
 out vec3 v_normal;out vec4 v_color;out float v_glow;
-void main(){gl_Position=u_mvp*vec4(a_position,1.0);v_normal=a_normal;v_color=a_color;v_glow=a_glow;}"#,
+void main(){gl_Position=u_mvp*vec4(a_position,1.0);v_normal=mat3(u_view)*a_normal;v_color=a_color;v_glow=a_glow;}"#,
         )?;
         let fs = Self::shader(
             &gl,
@@ -276,7 +380,19 @@ void main(){gl_Position=u_mvp*vec4(a_position,1.0);v_normal=a_normal;v_color=a_c
             r#"#version 300 es
 precision highp float;
 in vec3 v_normal;in vec4 v_color;in float v_glow;out vec4 out_color;
-void main(){vec3 n=normalize(v_normal);float a=abs(dot(n,normalize(vec3(-0.4,-0.3,1.0))));float b=pow(abs(dot(n,normalize(vec3(0.5,-0.5,1.0)))),24.0);vec3 c=v_color.rgb*(0.64+0.36*a)+vec3(0.16)*b;out_color=vec4(mix(c,v_color.rgb,v_glow),v_color.a);}"#,
+// Pearl-film approximation: directional interference colours, not a physical refraction solver.
+void main(){
+    vec3 n=normalize(v_normal+vec3(0.00001));
+    float facing=abs(n.z);
+    float edge=pow(1.0-facing,2.2);
+    float light=0.5+0.5*dot(n,normalize(vec3(-0.5,-0.6,1.0)));
+    vec3 pearl=0.64+0.25*cos(vec3(0.1,2.0,4.3)+facing*7.0+n.x*2.5);
+    float spec=pow(abs(dot(n,normalize(vec3(-0.6,-0.7,1.0)))),40.0);
+    vec3 c=mix(v_color.rgb*(0.72+0.28*light),pearl,0.45+edge*0.25);
+    c=mix(c,vec3(1.0),spec*0.92);
+    float alpha=v_color.a*(0.40+edge*1.9+spec*0.8);
+    out_color=vec4(mix(c,v_color.rgb,v_glow),mix(alpha,v_color.a,v_glow));
+}"#,
         )?;
         let program = gl.create_program().ok_or("無法建立繪圖程式")?;
         gl.attach_shader(&program, &vs);
@@ -295,6 +411,9 @@ void main(){vec3 n=normalize(v_normal);float a=abs(dot(n,normalize(vec3(-0.4,-0.
         let mvp = gl
             .get_uniform_location(&program, "u_mvp")
             .ok_or("找不到投影參數")?;
+        let view = gl
+            .get_uniform_location(&program, "u_view")
+            .ok_or("找不到視角參數")?;
         gl.use_program(Some(&program));
         gl.bind_buffer(Gl::ARRAY_BUFFER, Some(&buffer));
         for (name, size, offset) in [
@@ -308,7 +427,7 @@ void main(){vec3 n=normalize(v_normal);float a=abs(dot(n,normalize(vec3(-0.4,-0.
             gl.vertex_attrib_pointer_with_i32(a, size, Gl::FLOAT, false, 44, offset);
         }
         gl.enable(Gl::BLEND);
-        // 保持畫布不透明，避免瀏覽器合成時把薄膜洗成白色。
+        // 分別累積色彩與 alpha，讓薄膜正確合成到 CSS 的霧灰背景。
         gl.blend_func_separate(
             Gl::SRC_ALPHA,
             Gl::ONE_MINUS_SRC_ALPHA,
@@ -322,6 +441,7 @@ void main(){vec3 n=normalize(v_normal);float a=abs(dot(n,normalize(vec3(-0.4,-0.
             program,
             buffer,
             mvp,
+            view,
             canvas,
         })
     }
@@ -352,7 +472,7 @@ void main(){vec3 n=normalize(v_normal);float a=abs(dot(n,normalize(vec3(-0.4,-0.
             self.canvas.set_height(h);
         }
         gl.viewport(0, 0, w as i32, h as i32);
-        gl.clear_color(0.957, 0.949, 0.925, 1.);
+        gl.clear_color(0., 0., 0., 0.);
         gl.depth_mask(true);
         gl.clear(Gl::COLOR_BUFFER_BIT | Gl::DEPTH_BUFFER_BIT);
         gl.use_program(Some(&self.program));
@@ -369,9 +489,23 @@ void main(){vec3 n=normalize(v_normal);float a=abs(dot(n,normalize(vec3(-0.4,-0.
             * Mat4::from_rotation_y(g.yaw)
             * Mat4::from_translation(Vec3::new(-g.width / 2., -g.height / 2., 0.));
         gl.uniform_matrix4fv_with_f32_array(Some(&self.mvp), false, &mvp.to_cols_array());
+        let view = Mat4::from_rotation_x(g.pitch) * Mat4::from_rotation_y(g.yaw);
+        gl.uniform_matrix4fv_with_f32_array(Some(&self.view), false, &view.to_cols_array());
         let mut mesh = Mesh::new();
         mesh.garden(g);
-        self.upload(&mesh.triangles, Gl::TRIANGLES);
+        // 所有半透明三角形按視角由後往前畫，內部囊室才不會被外膜錯誤遮掉。
+        let mut triangles: Vec<_> = mesh.triangles.chunks_exact(33).collect();
+        triangles.sort_by_cached_key(|v| {
+            let p = Vec3::new(
+                (v[0] + v[11] + v[22]) / 3.,
+                (v[1] + v[12] + v[23]) / 3.,
+                (v[2] + v[13] + v[24]) / 3.,
+            );
+            (g.project(p).1 * 100.) as i32
+        });
+        let sorted: Vec<f32> = triangles.into_iter().flatten().copied().collect();
+        gl.depth_mask(false);
+        self.upload(&sorted, Gl::TRIANGLES);
         self.upload(&mesh.lines, Gl::LINES);
     }
     fn upload(&self, vertices: &[f32], mode: u32) {
@@ -414,6 +548,50 @@ impl App {
         pressed("orbit-mode", g.rotate);
         pressed("single", g.single);
         pressed("colony", !g.single);
+        pressed("inspect", g.inspect);
+        element("inspect")
+            .set_attribute("aria-expanded", if g.inspect { "true" } else { "false" })
+            .ok();
+        if g.inspect {
+            element("anatomy").remove_attribute("hidden").ok();
+        } else {
+            element("anatomy").set_attribute("hidden", "").ok();
+        }
+        for (i, id) in ["whole", "membrane", "chambers", "filaments"]
+            .iter()
+            .enumerate()
+        {
+            pressed(id, g.focus == i as u8);
+        }
+        let (name, description) = match g.focus {
+            1 => (
+                "膠質外膜",
+                "水霧漸濃，五道褶瓣慢慢展開。液珠沿著細溝聚攏；外膜的珠光隨觀察角度改變。",
+            ),
+            2 => (
+                "內部囊室",
+                "三個半透明囊室隨含水量脹縮，深色顆粒留在裡面。外膜淡去後，可以轉到背面觀察。",
+            ),
+            3 => (
+                "分岔細絲",
+                "身體先移動，細絲才跟上。末端分出更細的枝節；水霧聚成小珠，掛在絲上。",
+            ),
+            _ => (
+                "一個移動的棲地",
+                "膜、囊室與細絲一起呼吸。把水霧留在牠身旁，觀察展開、蓄水與下沉。",
+            ),
+        };
+        text("part-title", name);
+        text("part-description", description);
+        element("canvas")
+            .set_attribute("data-focus", &g.focus.to_string())
+            .ok();
+        element("exhibit")
+            .set_attribute("data-inspect", if g.inspect { "true" } else { "false" })
+            .ok();
+        element("canvas")
+            .set_attribute("data-input", if g.rotate { "orbit" } else { "mist" })
+            .ok();
         element("canvas")
             .set_attribute("data-engine", "rust-webassembly")
             .ok();
@@ -521,6 +699,16 @@ pub fn start() -> Result<(), JsValue> {
         g.pitch = 0.;
         g.zoom = 1.;
     })?;
+    on_click(&app, "inspect", |g| {
+        g.inspect = !g.inspect;
+        if !g.inspect {
+            g.focus = 0;
+        }
+    })?;
+    on_click(&app, "whole", |g| g.focus = 0)?;
+    on_click(&app, "membrane", |g| g.focus = 1)?;
+    on_click(&app, "chambers", |g| g.focus = 2)?;
+    on_click(&app, "filaments", |g| g.focus = 3)?;
     let a = app.clone();
     let c = Closure::<dyn FnMut(web_sys::Event)>::new(move |e: web_sys::Event| {
         let input = e.target().unwrap().dyn_into::<HtmlInputElement>().unwrap();
@@ -569,13 +757,14 @@ pub fn start() -> Result<(), JsValue> {
     c.forget();
     for name in ["pointerup", "pointercancel", "pointerleave"] {
         let a = app.clone();
-        let c = Closure::<dyn FnMut(web_sys::Event)>::new(move |_| {
-            let mut a = a.borrow_mut();
-            a.drag = None;
-            if name == "pointerleave" {
-                a.garden.inside = false;
-            }
-        });
+        let c =
+            Closure::<dyn FnMut(web_sys::PointerEvent)>::new(move |e: web_sys::PointerEvent| {
+                let mut a = a.borrow_mut();
+                a.drag = None;
+                if name != "pointerup" || e.pointer_type() != "mouse" {
+                    a.garden.inside = false;
+                }
+            });
         canvas.add_event_listener_with_callback(name, c.as_ref().unchecked_ref())?;
         c.forget();
     }
@@ -604,6 +793,9 @@ pub fn start() -> Result<(), JsValue> {
                 if e.code() == "Escape" {
                     element("guide").set_attribute("hidden", "").ok();
                     element("help").set_attribute("aria-expanded", "false").ok();
+                    a.garden.inspect = false;
+                    a.garden.focus = 0;
+                    a.ui();
                     return;
                 }
                 if e.target()

@@ -1,3 +1,4 @@
+use crate::soft_body::{bell, pose, strand_angle, Filament, STRANDS};
 use glam::{Vec2, Vec3};
 use std::f32::consts::TAU;
 pub const LIMIT: usize = 28;
@@ -13,6 +14,7 @@ pub struct Creature {
     pub age: f32,
     pub bloom: f32,
     pub young: f32,
+    pub filaments: Vec<Filament>,
 }
 impl Creature {
     fn new(position: Vec3, size: f32, phase: f32) -> Self {
@@ -26,6 +28,7 @@ impl Creature {
             age: 0.,
             bloom: 0.45,
             young: 1.,
+            filaments: vec![Filament::default(); STRANDS],
         }
     }
     /// Reynolds 的 arrival：理想速度減掉目前速度，再限制轉向力。
@@ -62,6 +65,9 @@ pub struct Garden {
     pub inside: bool,
     pub rotate: bool,
     pub shift: bool,
+    /// 0 全貌、1 外膜、2 囊室、3 細絲；只改觀察方式，不改生命規則。
+    pub focus: u8,
+    pub inspect: bool,
     seed: u32,
 }
 impl Garden {
@@ -84,6 +90,8 @@ impl Garden {
             inside: false,
             rotate: false,
             shift: false,
+            focus: 0,
+            inspect: false,
             seed: 42,
         };
         g.reset();
@@ -107,9 +115,10 @@ impl Garden {
         self.yaw = -0.3;
         self.pitch = -0.15;
         self.zoom = 1.;
+        self.focus = 0;
         for _ in 0..if self.single { 1 } else { 16 } {
             let position = if self.single {
-                Vec3::new(self.width * 0.62, self.height * 0.48, 0.)
+                Vec3::new(self.width * 0.53, self.height * 0.46, 0.)
             } else {
                 Vec3::new(
                     self.width * (0.22 + self.random() * 0.60),
@@ -118,7 +127,9 @@ impl Garden {
                 )
             };
             let size = if self.single {
-                (self.width * 0.075).clamp(38., 100.)
+                (self.width * if self.width < 760. { 0.21 } else { 0.145 })
+                    .min(self.height * 0.20)
+                    .clamp(38., 170.)
             } else {
                 24. + self.random() * 10.
             };
@@ -162,11 +173,17 @@ impl Garden {
         }
     }
     pub fn resize(&mut self, w: f32, h: f32) {
+        let scale = Vec3::new(w / self.width, h / self.height, 1.);
         for c in &mut self.creatures {
             c.position.x *= w / self.width;
             c.position.y *= h / self.height;
             if self.single {
-                c.size = (w * 0.075).clamp(38., 100.);
+                c.size = (w * if w < 760. { 0.21 } else { 0.145 })
+                    .min(h * 0.20)
+                    .clamp(38., 170.);
+            }
+            for strand in &mut c.filaments {
+                strand.resize(scale);
             }
         }
         self.width = w;
@@ -297,6 +314,23 @@ impl Garden {
                 (self.height - 140.).max(self.height * 0.24),
             );
             c.position.z = c.position.z.clamp(-190., 190.);
+            let model = pose(c.position, self.time, c.phase);
+            let radius = c.size * c.young;
+            for (j, strand) in c.filaments.iter_mut().enumerate() {
+                if !self.single && j % 3 != 0 {
+                    continue;
+                }
+                let angle = strand_angle(j);
+                let anchor =
+                    model.transform_point3(bell(1., angle, self.time, c.bloom, c.phase) * radius);
+                let length = radius * (0.062 + 0.014 * angle.sin());
+                let wind = Vec3::new(
+                    (self.time * 0.7 + angle).sin() * 24. + c.velocity.x * 2.,
+                    0.,
+                    (self.time * 0.5 + angle).cos() * 18.,
+                ) * (0.3 + c.water);
+                strand.step(anchor, length, dt, wind);
+            }
             if !self.single
                 && c.age > 18.
                 && c.energy > 0.82

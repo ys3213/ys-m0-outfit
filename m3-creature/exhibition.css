@@ -528,3 +528,74 @@ h1 span {
     transform:none!important;
   }
 }
+
+/* 第二輪：標本式構圖。資訊揭露節奏改作自 pmndrs Frosted Glass Overlay (MIT)。 */
+:root {--color-bg:#eeedf0;--color-text:#38383d;--color-link:#38383d;--ink:#38383d;--quiet:#75727d;--rule:#d2cfd7;}
+body {background:#eeedf0;}
+.exhibit {background:radial-gradient(ellipse at 51% 45%,#fdfcfa 0%,#f4f2f4 28%,#e8e7ed 70%,#e0e0e8 100%);min-height:730px;}
+.exhibition-frame {padding:30px 3.5vw;border-bottom:1px solid #77717e18;}
+.wordmark {font-size:11px;letter-spacing:.08em;}
+.exhibition-frame nav {font-size:11px;}
+.hero-copy {left:5vw;top:23%;max-width:28vw;}
+.eyebrow {font:9px/1.6 -apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:.15em;margin-bottom:26px;}
+h1 {font-size:clamp(38px,4.3vw,66px);letter-spacing:.08em;line-height:1.3;}
+.title-dot {color:#938391;}
+.hero-note {font-size:16px;line-height:2.1;margin-top:27px;color:#77717d;letter-spacing:.12em;}
+.habitat-label {font-size:10px;line-height:2.2;color:#827c87;margin-top:42px;letter-spacing:.06em;}
+.specimen-orbit {position:absolute;inset:20% 28% 27%;border:1px solid #8b829415;border-radius:50%;pointer-events:none;}
+.specimen-orbit span {position:absolute;color:#9b93a9;font-size:15px;top:50%;left:-5px;}
+.specimen-orbit span+span {left:auto;right:-5px;}
+.observation {position:absolute;right:4vw;top:24%;width:195px;}
+.observation .eyebrow {font-size:8px;margin-bottom:20px;}
+.observation-title {font-family:'Songti TC',serif;font-size:22px;line-height:1.6;letter-spacing:.13em;margin:0 0 30px;}
+.inspect-button {display:flex;justify-content:space-between;align-items:center;width:100%;background:transparent;border:0;border-top:1px solid #a9a1b1;padding:17px 0;font:inherit;font-size:11px;line-height:1.5;cursor:pointer;text-align:left;}
+.inspect-button span {transition:transform .3s;font-size:18px;font-weight:200;}
+.inspect-button[aria-expanded=true] span {transform:rotate(45deg);}
+.anatomy {position:absolute;right:3vw;top:calc(24% + 203px);width:235px;padding:20px;background:#faf9fbab;backdrop-filter:blur(14px);border:1px solid #fff9;box-shadow:0 15px 40px #4d365809;z-index:4;animation:reveal .45s both;}
+.anatomy-tabs {display:flex;justify-content:space-between;gap:6px;}
+.anatomy-tabs button {padding:0 0 8px;background:none;border:0;border-bottom:1px solid transparent;font:inherit;font-size:11px;cursor:pointer;color:#797280;}
+.anatomy-tabs button[aria-pressed=true] {border-bottom-color:#58505f;color:#322a3b;}
+.anatomy-index {font-size:8px;letter-spacing:.13em;color:#8a8290;margin:26px 0 12px;}
+.anatomy h2 {font-family:'Songti TC',serif;font-size:20px;font-weight:400;letter-spacing:.04em;margin:0 0 12px;}
+.anatomy #part-description {font-size:11px;line-height:2.1;color:#716979;min-height:70px;}
+.anatomy a {font-size:10px;display:inline-block;margin-top:12px;}
+.anatomy>* {animation:reveal .5s both;}
+.anatomy>*:nth-child(2) {animation-delay:.05s;}
+.anatomy>*:nth-child(3) {animation-delay:.10s;}
+.anatomy>*:nth-child(4) {animation-delay:.15s;}
+@keyframes reveal {from {opacity:0;transform:translateY(12px);}to {opacity:1;transform:translateY(0);}}
+.specimen-caption {top:auto;bottom:192px;left:5vw;right:auto;flex-direction:row;align-items:center;gap:10px;}
+.specimen-caption>span:last-child {font-size:9px;margin-left:14px;color:#9a929e;}
+.live-dot {width:5px;height:5px;background:#7c918b;border-radius:50%;}
+.bottom-bar {bottom:73px;left:3.5vw;right:3.5vw;padding:22px 0 12px;border-color:#b7afc052;gap:22px;font-size:11px;}
+.bottom-bar button {min-height:35px;}
+.bottom-bar button:hover {color:#a56c8d;}
+.readings b {font-family:Georgia,serif;font-size:22px;}
+.zoom-label input {accent-color:#928395;}
+.scroll-note {left:3.5vw;font-size:9px;bottom:26px;}
+#canvas[data-input=orbit] {cursor:grab;}
+#canvas[data-input=orbit]:active {cursor:grabbing;}
+.guide {background:#f4f1f7f2;border-color:#d0c9d6;}
+.world-section em {color:#a18b9e;}
+.life-section {background:#e4e1e9;}
+.life-notes article {border-color:#bfb7c8;}
+.life-notes p {color:#6a6174;}
+@media(min-width:1600px) {.observation{right:6vw;width:220px;}.anatomy{right:5vw;width:255px;}}
+@media(max-width:1100px) and (min-width:761px) {
+ .observation{right:3.5vw;width:150px;}.anatomy{width:210px;right:3vw;top:calc(24% + 200px);}
+ .bottom-bar{gap:12px;}.readings{gap:9px;padding-left:10px;}.weather-controls{gap:12px;}
+}
+@media(max-width:760px) {
+ .exhibit{min-height:820px;}.exhibition-frame{padding:22px 6vw;}.exhibition-frame nav{gap:16px;font-size:10px;}
+ .hero-copy{top:13%;left:6vw;max-width:65vw;}.hero-copy .eyebrow{font-size:8px;margin-bottom:15px;}h1{font-size:38px;}
+ .hero-note{font-size:12px;margin-top:12px;line-height:1.9;}.hero-note br{display:none;}.habitat-label{font-size:9px;margin-top:15px;}
+ .observation{right:6vw;top:15%;width:80px;}.observation .eyebrow,.observation-title{display:none;}
+ .inspect-button{padding:10px 0;font-size:10px;gap:6px;}.inspect-button span{font-size:15px;}
+ .specimen-orbit{inset:32% 12% 32%;}
+ .anatomy{top:23%;right:6vw;width:220px;padding:16px;}.anatomy #part-description{min-height:0;}.anatomy-index{margin-top:16px;}
+ .specimen-caption{bottom:214px;left:6vw;gap:8px;}.specimen-caption>span:last-child{margin-left:4px;font-size:8px;}
+ .bottom-bar{left:6vw;right:6vw;bottom:61px;gap:12px 17px;padding:14px 0 0;}.bottom-bar button{min-height:32px;}
+ .readings{position:absolute;right:0;bottom:0;gap:10px;}.readings b{font-size:17px;}.readings span{font-size:9px;}
+ .weather-controls{gap:17px;}.weather-controls button{font-size:10px;}.weather-controls #reset{margin-right:120px;}
+ .zoom-label{font-size:10px;gap:5px;}.zoom-label input{width:45px;}.scroll-note{left:6vw;}
+}

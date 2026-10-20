@@ -2,3 +2,4 @@
 #[cfg(target_arch = "wasm32")]
 mod browser;
 pub mod life;
+pub mod soft_body;
