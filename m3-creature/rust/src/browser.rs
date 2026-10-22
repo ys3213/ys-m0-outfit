@@ -307,34 +307,41 @@ impl Mesh {
                 }
             }
         }
+        // 沿用波動的生命週期與輕推反應，視覺改成逸散的珠光雨泡。
         for w in &g.waves {
-            for axis in 0..3 {
-                for k in 0..64 {
-                    let point = |n: usize| {
-                        let a = n as f32 / 64. * TAU;
-                        let (x, y) = (a.cos() * w.radius, a.sin() * w.radius);
-                        w.position
-                            + match axis {
-                                0 => Vec3::new(x, y, 0.),
-                                1 => Vec3::new(x, 0., y),
-                                _ => Vec3::new(0., x, y),
-                            }
-                    };
-                    self.line(
-                        point(k),
-                        point(k + 1),
-                        [0.34, 0.45, 0.51, (1. - w.radius / 350.) * 0.5],
+            let progress = (w.radius / 350.).clamp(0., 1.);
+            let fade = (progress * 8.).min(1.) * (1. - progress).powf(1.4);
+            let seed = w.position.x * 0.013 + w.position.y * 0.021;
+            for i in 0..7 {
+                let a = i as f32 * 2.39996 + seed;
+                let spread = progress.sqrt() * (28. + i as f32 * 6.);
+                let p = w.position
+                    + Vec3::new(
+                        a.cos() * spread + (progress * 3. + a).sin() * 8. * progress,
+                        a.sin() * spread * 0.55 - progress * 78.,
+                        (a + 0.7).cos() * spread * 0.6,
                     );
-                }
+                let size = (6. + ((i * 7) % 13) as f32) * (0.45 + progress.sqrt() * 0.65);
+                let model = Mat4::from_translation(p) * Mat4::from_rotation_z(a + progress * 0.5);
+                self.ellipsoid(
+                    model,
+                    Vec3::new(size, size * 1.12, size * 0.9),
+                    [0.68, 0.71, 0.83, fade * 0.56],
+                    0.,
+                );
             }
         }
-        for (i, m) in g.mist.iter().enumerate() {
-            let d = 1.4 + (i % 3) as f32 * 0.5;
+        for m in &g.mist {
+            let direction = m.velocity.normalize_or_zero();
+            // 淡尾、亮端：讓細雨能看出下落方向，而不是靜止的碎點。
+            let opacity = ((1. - m.life) * 9.).min(1.) * m.life.min(0.7);
+            let middle = m.position - direction * m.length * 0.45;
             self.line(
-                m.position - Vec3::Y * d,
-                m.position + Vec3::Y * d,
-                [0.26, 0.52, 0.58, m.life * 0.6],
+                m.position - direction * m.length,
+                middle,
+                [0.49, 0.50, 0.65, opacity * 0.38],
             );
+            self.line(middle, m.position, [0.37, 0.46, 0.61, opacity * 0.80]);
         }
         for i in 0..70 {
             let a = i as f32;
@@ -534,13 +541,19 @@ impl App {
             } else if g.water() < 0.2 {
                 "收攏 · 休眠"
             } else if g.inside && !g.rotate {
-                "感受水霧"
+                "游標帶來細雨"
             } else {
                 "緩慢漂移"
             },
         );
         text("water", &format!("{:02.0}", g.water() * 100.));
         text("count", &format!("{:02}", g.creatures.len()));
+        element("canvas")
+            .set_attribute("data-raindrops", &g.mist.len().to_string())
+            .ok();
+        element("canvas")
+            .set_attribute("data-rain-blooms", &g.waves.len().to_string())
+            .ok();
         text("pause", if g.paused { "繼續" } else { "暫停" });
         pressed("pause", g.paused);
         pressed("wind", g.vortex);

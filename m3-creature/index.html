@@ -5,7 +5,7 @@
   <meta name="description" content="會下雨的漂浮花園。觀察霧晶囊如何靠近水霧、展開晶瓣，又隨風雨聚散。">
   <title>霧晶囊 · 漂浮花園 — ys</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2710%27 fill=%27none%27 stroke=%27%2352797b%27 stroke-width=%272%27/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="vendor/codrops/base.css"><link rel="stylesheet" href="exhibition.css?v=20261020-soft">
+  <link rel="stylesheet" href="vendor/codrops/base.css"><link rel="stylesheet" href="exhibition.css?v=20261022-rain">
 </head>
 <body>
   <header class="frame exhibition-frame">
@@ -24,10 +24,10 @@
       </aside>
       <div class="specimen-caption"><span class="live-dot"></span><span id="status" role="status">花園正在甦醒</span><span>放大觀察 / 想像物種</span></div>
       <div id="loading" class="loading-state"><p id="load-state">正在進入花園…</p><a href="../m2-species/">開啟上一版</a></div>
-      <aside id="guide" class="guide" hidden><p>留一點水霧，看看牠的反應。</p><ol><li>水霧：把游標停在生物旁；點一下放出波紋。</li><li>轉動：拖曳看側面與背面，滾輪調整遠近。</li><li>降雨與旋風會改變花園的重量和流向。</li><li>空白鍵暫停，R 重新萌生，Esc 收起說明。</li></ol><a href="https://github.com/ys3213/ys-m0-outfit/blob/main/m3-creature/RUN.md">完整操作說明</a></aside>
+      <aside id="guide" class="guide" hidden><p>留一點水霧，看看牠的反應。</p><ol><li>引雨：游標附近會下起細雨；點一下，珠光雨泡會緩緩散開。</li><li>轉動：拖曳看側面與背面，滾輪調整遠近。</li><li>降雨與旋風會改變花園的重量和流向。</li><li>空白鍵暫停，R 重新萌生，Esc 收起說明。</li></ol><a href="https://github.com/ys3213/ys-m0-outfit/blob/main/m3-creature/RUN.md">完整操作說明</a></aside>
       <div class="bottom-bar">
         <div class="mode-switch" aria-label="觀察範圍"><button id="single" class="unbutton" aria-pressed="true">個體</button><span>/</span><button id="colony" class="unbutton" aria-pressed="false">花園</button></div>
-        <div class="interaction-switch" aria-label="互動方式"><button id="water-mode" class="unbutton" aria-pressed="true">水霧</button><button id="orbit-mode" class="unbutton" aria-pressed="false">轉動</button></div>
+        <div class="interaction-switch" aria-label="互動方式"><button id="water-mode" class="unbutton" aria-pressed="true">引雨</button><button id="orbit-mode" class="unbutton" aria-pressed="false">轉動</button></div>
         <div class="weather-controls"><button id="rain" class="unbutton">降雨</button><button id="wind" class="unbutton" aria-pressed="false">旋風</button><button id="pause" class="unbutton" aria-pressed="false">暫停</button><button id="reset" class="unbutton">重新萌生</button></div>
         <label class="zoom-label">遠近<input id="zoom" aria-label="觀察遠近" type="range" min="65" max="180" value="100"></label><button id="front" class="unbutton front-button">正面</button>
         <div class="readings"><span>含水 <b id="water">45</b><small>%</small></span><span>個體 <b id="count">01</b></span></div>
@@ -49,8 +49,8 @@
   <script type="module">
     // 僅載入編譯後的 Rust；生命規則、繪圖、事件與動畫迴圈均在 Rust。
     try {
-      const { default: init } = await import('./pkg/mist_garden.js?v=20261020-soft');
-      await init({ module_or_path: new URL('./pkg/mist_garden_bg.wasm?v=20261020-soft', import.meta.url) });
+      const { default: init } = await import('./pkg/mist_garden.js?v=20261022-rain');
+      await init({ module_or_path: new URL('./pkg/mist_garden_bg.wasm?v=20261022-rain', import.meta.url) });
     }
     catch (error) { document.getElementById('load-state').textContent='花園暫時無法啟動。請確認瀏覽器支援 WebGL2，或開啟上一版。'; console.error(error); }
   </script>

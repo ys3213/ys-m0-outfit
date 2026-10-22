@@ -45,6 +45,8 @@ pub struct Wave {
 }
 pub struct Mote {
     pub position: Vec3,
+    pub velocity: Vec3,
+    pub length: f32,
     pub life: f32,
 }
 pub struct Garden {
@@ -155,7 +157,11 @@ impl Garden {
         )
     }
     pub fn pointer_at_depth(&self, depth: f32) -> Vec3 {
-        let p = (self.pointer - Vec2::new(self.width / 2., self.height / 2.)) / self.zoom;
+        self.unproject(self.pointer, depth)
+    }
+    /// 把畫面座標轉回世界，局部雨幕在轉過視角後仍落在游標旁。
+    pub fn unproject(&self, screen: Vec2, depth: f32) -> Vec3 {
+        let p = (screen - Vec2::new(self.width / 2., self.height / 2.)) / self.zoom;
         let y = self.pitch.cos() * p.y + self.pitch.sin() * depth;
         let z = -self.pitch.sin() * p.y + self.pitch.cos() * depth;
         Vec3::new(
@@ -166,6 +172,10 @@ impl Garden {
     }
     pub fn ripple(&mut self) {
         if !self.rotate && !self.paused {
+            // 連點時保持有限數量，避免雨泡拖慢展示。
+            if self.waves.len() >= 6 {
+                self.waves.remove(0);
+            }
             self.waves.push(Wave {
                 position: self.pointer_at_depth(0.),
                 radius: 1.,
@@ -189,6 +199,20 @@ impl Garden {
         self.width = w;
         self.height = h;
     }
+    fn add_raindrop(&mut self, screen: Vec2) {
+        let depth = (self.random() - 0.5) * 95.;
+        let position = self.unproject(screen, depth);
+        let speed = 140. + self.random() * 95.;
+        let drift = 5. + self.random() * 8.;
+        let velocity = self.unproject(screen + Vec2::new(drift, speed), depth) - position;
+        let length = (6. + self.random() * 7.) / self.zoom;
+        self.mist.push(Mote {
+            position,
+            velocity,
+            length,
+            life: 1.,
+        });
+    }
     pub fn update(&mut self, dt: f32) {
         if self.paused {
             return;
@@ -201,33 +225,24 @@ impl Garden {
         }
         self.waves.retain(|w| w.radius < 350.);
         if self.inside && !self.rotate {
-            let mut p = self.pointer_at_depth(0.);
-            p += Vec3::new(
-                (self.random() - 0.5) * 50.,
-                (self.random() - 0.5) * 50.,
-                (self.random() - 0.5) * 120.,
-            );
-            self.mist.push(Mote {
-                position: p,
-                life: 1.,
-            });
+            for _ in 0..(dt * 180.).round() as usize {
+                let screen = self.pointer
+                    + Vec2::new(
+                        (self.random() - 0.5) * 112.,
+                        -65. + (self.random() - 0.5) * 45.,
+                    );
+                self.add_raindrop(screen);
+            }
         }
         if self.rain > 0. {
-            for _ in 0..3 {
-                let p = Vec3::new(
-                    self.random() * self.width,
-                    self.random() * self.height,
-                    (self.random() - 0.5) * 360.,
-                );
-                self.mist.push(Mote {
-                    position: p,
-                    life: 1.,
-                });
+            for _ in 0..(dt * 150.).round() as usize {
+                let screen = Vec2::new(self.random() * self.width, self.random() * self.height);
+                self.add_raindrop(screen);
             }
         }
         for m in &mut self.mist {
-            m.position += Vec3::new(5., 12., 0.) * dt;
-            m.life -= dt * 0.6;
+            m.position += m.velocity * dt;
+            m.life -= dt * 0.85;
         }
         self.mist.retain(|m| m.life > 0.);
         if self.mist.len() > 350 {
@@ -261,7 +276,7 @@ impl Garden {
             for w in &self.waves {
                 let delta = c.position - w.position;
                 if (delta.length() - w.radius).abs() < 24. {
-                    f += delta.normalize_or_zero() * 85.;
+                    f += delta.normalize_or_zero() * 38. * (1. - w.radius / 350.);
                 }
             }
             for (j, b) in self.creatures.iter().enumerate() {
@@ -412,6 +427,55 @@ mod tests {
         g.update(0.05);
         assert_eq!(g.time, t);
         assert_eq!(g.creatures[0].position, p);
+    }
+    #[test]
+    fn local_rain_stays_near_pointer_after_view_rotation() {
+        let mut g = Garden::new(1200., 800.);
+        g.yaw = 1.2;
+        g.pitch = 0.7;
+        g.zoom = 1.5;
+        g.pointer = Vec2::new(650., 350.);
+        g.inside = true;
+        g.update(1. / 30.);
+        assert!(!g.mist.is_empty());
+        for m in &g.mist {
+            let (screen, _) = g.project(m.position);
+            assert!((screen.x - g.pointer.x).abs() < 58.);
+            assert!(screen.y < g.pointer.y && screen.y > g.pointer.y - 90.);
+            let velocity = g.project(m.position + m.velocity).0 - screen;
+            assert!(velocity.y > 139. && velocity.y < 236.);
+        }
+        g.pointer = Vec2::new(250., 250.);
+        g.mist.clear();
+        g.update(1. / 30.);
+        assert!(g
+            .mist
+            .iter()
+            .all(|m| (g.project(m.position).0.x - 250.).abs() < 58.));
+        g.inside = false;
+        for _ in 0..45 {
+            g.update(1. / 30.);
+        }
+        assert!(g.mist.is_empty());
+    }
+    #[test]
+    fn click_blooms_are_bounded_and_expire() {
+        let mut g = Garden::new(1200., 800.);
+        for _ in 0..30 {
+            g.ripple();
+        }
+        assert_eq!(g.waves.len(), 6);
+        g.paused = true;
+        g.update(0.05);
+        assert_eq!(g.waves[0].radius, 1.);
+        g.paused = false;
+        for _ in 0..80 {
+            g.update(1. / 30.);
+        }
+        assert!(g.waves.is_empty());
+        g.rotate = true;
+        g.ripple();
+        assert!(g.waves.is_empty());
     }
     #[test]
     fn arrival_slows_down_near_water() {

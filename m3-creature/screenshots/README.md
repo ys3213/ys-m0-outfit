@@ -21,3 +21,7 @@
 | [soft-anatomy.png](soft-anatomy.png) | 1440 × 900，選囊室並拖曳轉動；外膜淡去，保留包覆位置。 |
 | [soft-garden.png](soft-garden.png) | 1440 × 900，16 隻起始花園，降雨與旋風後暫停；群體使用簡化幾何。 |
 | [soft-mobile.png](soft-mobile.png) | 390 × 844，手機尺寸視窗，放大個體、降雨與暫停；非實體手機拍攝。 |
+
+## 2026-10-22 互動修訂
+
+[rain-bubbles.png](rain-bubbles.png)：1440 × 900，游標附近細雨與點擊後珠光雨泡的實際瀏覽器畫面，暫停後擷取。未合成或生成。
